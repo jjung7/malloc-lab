@@ -110,17 +110,21 @@ static void *coalesce(void *bp){
 static void *find_fit(size_t asize)
 {
   void *bp;
-    for (bp = start_nextfit; GET_SIZE(HDRP(bp)) > 0; bp = NEXT_BLKP(bp)) {
-        if (!GET_ALLOC(HDRP(bp)) && (asize <= GET_SIZE(HDRP(bp)))) {
-            return bp;
-        }
-    }
-    for (bp = heap_listp; bp!=start_nextfit; bp = NEXT_BLKP(bp)) {
-        if (!GET_ALLOC(HDRP(bp)) && (asize <= GET_SIZE(HDRP(bp)))) {
-            return bp;
-        }
-    }
-    return NULL;
+
+  // Search from start_nextfit to the end of the heap
+  for (bp = start_nextfit; block_size(bp) > 0; bp = next_block(bp)) {
+    if (!block_is_allocated(bp) && (asize <= block_size(bp)))
+      return bp; // Found a suitable free block
+  }
+
+  // Search from the beginning of the heap to start_nextfit
+  for (bp = heap_listp; bp != start_nextfit; bp = next_block(bp)) {
+    if (!block_is_allocated(bp) && (asize <= block_size(bp)))
+      return bp; // Found a suitable free block
+  }
+
+  // No suitable block found
+  return NULL;
 }
 static void place(void *bp, size_t asize){
     size_t csize = GET_SIZE(HDRP(bp));

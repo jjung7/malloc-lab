@@ -77,7 +77,7 @@ double get_counter()
  * Alpha versions of start_counter() and get_counter()
  ***************************************************/
 
-/* Initialize the cycle counter */
+/* Initialize the cycle counter */  
 static unsigned cyc_hi = 0;
 static unsigned cyc_lo = 0;
 

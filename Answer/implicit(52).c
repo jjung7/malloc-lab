@@ -76,15 +76,17 @@ team_t team = {
  * mm_init - initialize the malloc package.
  */
 static char *heap_listp;
+// static char *mem_heap; //points to first byte of heap
+// static char *mem_brk; //points to last byte of heap plus 1
+// static char *mem_max_addr; //max legal heap addr plus 1
 static void place(void *bp, size_t asize);
 static void *find_fit(size_t asize);
-static char *start_nextfit = 0;
+
 static void *coalesce(void *bp){
     size_t prev_alloc = GET_ALLOC(FTRP(PREV_BLKP(bp)));
     size_t next_alloc = GET_ALLOC(HDRP(NEXT_BLKP(bp)));
     size_t size = GET_SIZE(HDRP(bp));
     if (prev_alloc && next_alloc){ //case 1
-        start_nextfit = bp;
         return bp;
     }
     else if(prev_alloc && !next_alloc){ //case 2
@@ -104,23 +106,17 @@ static void *coalesce(void *bp){
         PUT(FTRP(NEXT_BLKP(bp)), PACK(size, 0));
         bp = PREV_BLKP(bp);
     }
-    start_nextfit = bp;
     return bp;
 }
-static void *find_fit(size_t asize)
-{
-  void *bp;
-    for (bp = start_nextfit; GET_SIZE(HDRP(bp)) > 0; bp = NEXT_BLKP(bp)) {
-        if (!GET_ALLOC(HDRP(bp)) && (asize <= GET_SIZE(HDRP(bp)))) {
+static void *find_fit(size_t asize){
+    void *bp;
+
+    for (bp = heap_listp; GET_SIZE(HDRP(bp)) > 0; bp = NEXT_BLKP(bp)){
+        if (!GET_ALLOC(HDRP(bp)) && (asize <= GET_SIZE(HDRP(bp)))){
             return bp;
         }
     }
-    for (bp = heap_listp; bp!=start_nextfit; bp = NEXT_BLKP(bp)) {
-        if (!GET_ALLOC(HDRP(bp)) && (asize <= GET_SIZE(HDRP(bp)))) {
-            return bp;
-        }
-    }
-    return NULL;
+    return NULL; //No fit
 }
 static void place(void *bp, size_t asize){
     size_t csize = GET_SIZE(HDRP(bp));
@@ -173,13 +169,30 @@ int mm_init(void)
     PUT(heap_listp + (2*WSIZE),PACK(DSIZE,1));  //Prologue footer
     PUT(heap_listp + (3*WSIZE),PACK(0,1));      //Epilogue header
     heap_listp += (2*WSIZE);
-    start_nextfit = heap_listp;
 
     //Extend the empty heap with a free block of CHUNKSIZE bytes
     if(extend_heap(CHUNKSIZE/WSIZE) == NULL)
         return -1;
     return 0;
 }
+
+
+
+/* 
+ * mm_malloc - Allocate a block by incrementing the brk pointer.
+ *     Always allocate a block whose size is a multiple of the alignment.
+ */
+// void *mem_sbrk(int incr){
+//     char *old_brk = mem_brk;
+
+//     if((incr<0) || ((mem_brk+incr)> mem_max_addr)){
+//         errno = ENOMEM;
+//         fprintf(stderr, "Error0\n");
+//         return(void *) -1;
+//     }
+//     mem_brk += incr;
+//     return(void *) old_brk;
+// }
 void *mm_malloc(size_t size)
 {
     size_t asize; //adjusted block size
@@ -239,3 +252,14 @@ void *mm_realloc(void *ptr, size_t size)
     return newptr;
 }
 
+/*
+ * mm-naive.c - The fastest, least memory-efficient malloc package.
+ * 
+ * In this naive approach, a block is allocated by simply incrementing
+ * the brk pointer.  A block is pure payload. There are no headers or
+ * footers.  Blocks are never coalesced or reused. Realloc is
+ * implemented directly using mm_malloc and mm_free.
+ *
+ * NOTE TO STUDENTS: Replace this header comment with your own header
+ * comment that gives a high level description of your solution.
+ */
